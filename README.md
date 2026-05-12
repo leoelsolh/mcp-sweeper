@@ -4,6 +4,7 @@
 - - - 
 
 ### What it detects
+- Hardcoded API tokens in `env` blocks (GitHub, AWS, OpenAI, Slack, GitLab, npm, Google)
 - Auto-install flags (`npx -y`/`uvx --yes`)
 - Overly broad filesystem access (`/`, `~`, `/home`)
 
@@ -21,7 +22,9 @@ Note exit codes: `0` = clean, `1` = findings, `2` = error.
 ### Example Output: 
 
 ```
-~$ python3 base.py fixtures/broad_fs.json
+~$ python3 base.py fixtures/unsafe_mcp.json
+
+[MEDIUM] filesystem (auto-install-flag): npx with auto-install flag
 
 [HIGH] filesystem (broad-fs-path): '/' exposes your entire computer to the MCP, things like your '/etc' with system configs and password databases.
 '/var/log' holds all the logs.
@@ -29,6 +32,10 @@ Note exit codes: `0` = clean, `1` = findings, `2` = error.
 The LLM is now practically an admin on your system. Is this what you want? 
 [HIGH] filesystem (broad-fs-path): '~' exposes things like '.ssh', '.aws', or '.env' to your MCP Server.
 Is this what you want?
+
+[CRITICAL] github (hardcoded-secret): 'GITHUB_PERSONAL_TOKEN' contains hardcoded GitHub personal access token
+[CRITICAL] github (hardcoded-secret): 'AWS_ACCESS_KEY' contains hardcoded AWS access key ID
+
 ```
 
 ### Requirements: 
@@ -37,7 +44,6 @@ Python 3.9+
 
 ### What's planned next? 
 
-- Hardcoded secrets detection
 - Expanded path coverage
 - JSON output for piping into other tools
 
