@@ -3,17 +3,6 @@ import sys
 import json
 from dataclasses import dataclass
 
-# --- Color codes for severity tags --- #
-
-SEVERITY_COLORS = {
-    "low":      "\033[38;2;255;215;0m",         # Yellow
-    "medium":   "\033[38;2;255;140;0m",         # Orange
-    "high":     "\033[38;2;220;30;30m",         # Red 
-    "critical": "\033[38;2;139;0;0m",           # Darker Red
-}
-
-COLOR_RESET = "\033[0m"
-
 
 # ===  MCP SCANNER  === #
 
@@ -24,6 +13,29 @@ class Finding:
     severity: str 
     category: str 
     message: str
+
+def check_hardcoded_secrets(name: str, config: dict) -> list[Finding]:
+
+    findings = []
+    env = config.get("env", {})
+
+    for var_name, value in env.items():
+        if value.startswith("$"):   # env var refrense, so not a real token
+            continue   
+
+        for prefix, (token_type, min_length) in TOKEN_PREFIXES.items():
+
+            if value.startswith(prefix) and len(value) >= min_length:
+                findings.append(Finding(
+                    server_name=name,
+                    severity="critical",
+                    category="hardcoded-secret",
+                    message=f"'{var_name}' contains hardcoded {token_type}"
+                ))
+
+                break
+        
+    return findings 
 
 def check_install_flags(name: str, config: dict) -> list[Finding]: 
 
@@ -104,9 +116,34 @@ except json.JSONDecodeError as e:
     print(f"Invalid JSON... {e}")
     sys.exit(2)
 
+SEVERITY_COLORS = {
+    "low":      "\033[38;2;255;215;0m",         # Yellow
+    "medium":   "\033[38;2;255;140;0m",         # Orange
+    "high":     "\033[38;2;220;30;30m",         # Red 
+    "critical": "\033[38;2;139;0;0m",           # Darker Red
+}
+
+COLOR_RESET = "\033[0m"
+
+TOKEN_PREFIXES = {
+    "sk-":      ("OpenAI / Anthropic API key",   30),
+    "ghp_":     ("GitHub personal access token", 40),
+    "gho_":     ("GitHub OAuth token",           40),
+    "ghu_":     ("GitHub user-to-server token",  40),
+    "ghs_":     ("GitHub server-to-server token",40),
+    "AKIA":     ("AWS access key ID",            20),
+    "ASIA":     ("AWS temporary access key",     20),
+    "xoxb-":    ("Slack bot token",              40),
+    "xoxp-":    ("Slack user token",             40),
+    "npm_":     ("npm token",                    40),
+    "glpat-":   ("GitLab personal access token", 26),
+    "AIza":     ("Google API key",               39),
+}
+
 CHECKS = [
     check_install_flags, 
     check_filesystem_paths,
+    check_hardcoded_secrets,
 ]
 
 all_findings = []

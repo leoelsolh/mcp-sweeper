@@ -6,7 +6,11 @@
     },
     "github": { 
       "command": "npx", 
-      "args": ["@modelcontextprotocol/server-github"] 
+      "args": ["@modelcontextprotocol/server-github"],
+      "env": {
+        "AWS_ACCESS_KEY": "$AWS_KEY",
+        "NPM_TOKEN": "PASTE_TOKEN_HERE"
+      }
     }
   }
 }

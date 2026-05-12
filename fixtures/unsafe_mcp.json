@@ -2,12 +2,16 @@
   "mcpServers": {
     "filesystem": { 
       "command": "npx",
-      "args": ["-y", "some-package"] 
+      "args": ["-y", "some-package", "@modelcontextprotocol/server-filesystem", "/", "~"] 
     },
 
     "github": { 
       "command": "npx", 
-      "args": ["@modelcontextprotocol/server-github"] 
+      "args": ["@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_TOKEN": "ghp_abcdefg1234567890ABCDEFGHI123456789012",
+        "AWS_ACCESS_KEY": "AKIAIOSFODNN7EXAMPLE"
+      }
     }
   }
 }
