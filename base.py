@@ -72,7 +72,11 @@ def check_filesystem_paths(name: str, config: dict) -> list[Finding]:
     broad_paths = {
         "/": "your entire computer to the MCP, things like your '/etc' with system configs and password databases.\n'/var/log' holds all the logs.\n'/usr/bin' holds every installed binary.\nThe LLM is now practically an admin on your system. Is this what you want? ",
         "~": "things like '.ssh', '.aws', or '.env' to your MCP Server.\nIs this what you want?",
+        "~/": "things like '.ssh', '.aws', or '.env' to your MCP Server.\nIs this what you want?",
         "/home": "every user on the machine. Most concerning on shared systems. if you are on a single-user machine, this is effectively a superset of '~'. ",
+        "/Users": "every user on the machine. Most concerning on shared systems. if you are on a single-user machine, this is effectively a superset of '~'. ",   # Essentially /home but on MacOS
+        "/etc": "system wide configs like '/etc/passwd'. '/etc/shadow', '/etc/cron.d' etc. These contain things like password hashes, scheduled jobs, every user on your system and so much more. You're essentially planting an intelligent backdoor on your system.",
+        "/root": "key files like '.ssh/', your root SSH keys. If your LLM can read /root it can become root... Don't forget .bash_history, and if you use AWS CLI, that too my friend is full cloud credentials...",
     }
 
     for arg in args:

@@ -2,7 +2,7 @@
   "mcpServers": {
     "filesystem": { 
       "command": "npx",
-      "args": ["-y", "some-package", "@modelcontextprotocol/server-filesystem", "/", "~"] 
+      "args": ["-y", "some-package", "@modelcontextprotocol/server-filesystem", "/", "~", "/etc", "/root"] 
     },
 
     "github": { 
