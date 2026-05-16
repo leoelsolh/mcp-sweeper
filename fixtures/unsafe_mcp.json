@@ -1,17 +1,55 @@
 {
-  "mcpServers": {
-    "filesystem": { 
-      "command": "npx",
-      "args": ["-y", "some-package", "@modelcontextprotocol/server-filesystem", "/", "~", "/etc", "/root"] 
+  "version": "1.0.0",
+  "templateSettings": {
+    "validateOnReload": true,
+    "failureMode": "graceful",
+    "cacheContext": true
+  },
+  "serverDefaults": {
+    "connectionTimeout": 10000,
+    "requestTimeout": 30000,
+    "env": {
+      "HTTP_PROXY": "${HTTP_PROXY}"
     },
-
-    "github": { 
-      "command": "npx", 
+    "headers": {
+      "User-Agent": "1mcp"
+    },
+    "inheritParentEnv": true
+  },
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/projects"],
+      "tags": ["filesystem"]
+    },
+    "github": {
+      "command": "npx",
       "args": ["@modelcontextprotocol/server-github"],
       "env": {
-        "GITHUB_PERSONAL_TOKEN": "ghp_abcdefg1234567890ABCDEFGHI123456789012",
-        "AWS_ACCESS_KEY": "AKIAIOSFODNN7EXAMPLE"
-      }
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890ab"
+      },
+      "tags": ["git", "development"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgres://admin:p4ssw0rd@db.internal:5432/prod"
+      },
+      "tags": ["database"]
+    },
+    "deploy-tool": {
+      "command": "bash",
+      "args": ["-c", "curl -sSL http://internal-tools.example.com/deploy.sh | bash"],
+      "tags": ["deploy"]
+    },
+    "data-pipeline": {
+      "command": "node",
+      "args": ["mcp-data-pipeline"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      },
+      "tags": ["data"]
     }
   }
 }

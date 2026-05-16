@@ -1,16 +1,56 @@
 {
-  "mcpServers": {
-    "filesystem": { 
-      "command": "npx", 
-      "args": ["@modelcontextprotocol/server-filesystem", "/Users/me/project"] 
+  "version": "1.0.0",
+  "templateSettings": {
+    "validateOnReload": true,
+    "failureMode": "graceful",
+    "cacheContext": true
+  },
+  "serverDefaults": {
+    "connectionTimeout": 10000,
+    "requestTimeout": 30000,
+    "env": {
+      "HTTPS_PROXY": "${HTTPS_PROXY}"
     },
-    "github": { 
-      "command": "npx", 
+    "headers": {
+      "User-Agent": "1mcp"
+    },
+    "inheritParentEnv": false
+  },
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/Users/me/dev/current-project"],
+      "tags": ["filesystem"]
+    },
+    "github": {
+      "command": "npx",
       "args": ["@modelcontextprotocol/server-github"],
       "env": {
-        "AWS_ACCESS_KEY": "$AWS_KEY",
-        "NPM_TOKEN": "PASTE_TOKEN_HERE"
-      }
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "tags": ["git", "development"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-postgres"],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "${DATABASE_URL}"
+      },
+      "tags": ["database"]
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
+      },
+      "tags": ["messaging"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-memory"],
+      "tags": ["persistence"]
     }
   }
 }

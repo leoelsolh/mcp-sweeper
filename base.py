@@ -20,7 +20,7 @@ def check_hardcoded_secrets(name: str, config: dict) -> list[Finding]:
     env = config.get("env", {})
 
     for var_name, value in env.items():
-        if value.startswith("$"):   # env var refrense, so not a real token
+        if value.startswith(("$", "{")):   # env var refrence, so not a real token
             continue   
 
         for prefix, (token_type, min_length) in TOKEN_PREFIXES.items():
@@ -51,6 +51,74 @@ def check_install_flags(name: str, config: dict) -> list[Finding]:
             category="auto-install-flag",
             message=f"{command} with auto-install flag"
         ))
+
+    return findings
+
+def check_suspicious_commands(name: str, config: dict) -> list[Finding]:
+
+    findings = []
+    command = config["command"] 
+    args = config.get("args", [])
+
+    if command in ("bash", "sh") and "-c" in args:
+        findings.append(Finding(
+            server_name=name,
+            severity="high",
+            category="suspicious-command",
+            message=f"'{command} -c' indicates inline shell code execution meaning args run as code"
+        ))
+
+    elif command in ("python", "python3") and "-c" in args:
+        findings.append(Finding(
+            server_name=name,
+            severity="high", 
+            category="suspicious-command",
+            message=f"'{command} -c' indicates inline python code execution, meaning args run as code"
+        ))
+
+    elif command == "node" and "-e" in args:
+        findings.append(Finding(
+            server_name=name,
+            severity="high", 
+            category="suspicious-command",
+            message=f"'{command} -e' indicates inline node.js code execution, meaning args run as code"
+        ))
+        
+    return findings
+
+def check_curl_pipe_bash(name: str, config: dict) -> list[Finding]:
+
+    findings = []
+    args = config.get("args", [])
+
+    for arg in args:
+        has_downloader = "curl" in arg or "wget" in arg
+        pipes_to_shell = "| bash" in arg or "| sh" in arg
+
+        if has_downloader and pipes_to_shell:
+            findings.append(Finding(
+                server_name=name,
+                severity="critical", 
+                category="curl-pipe-bash",
+                message=f"args pipe a remote download into a shell, classic RCE pattern. The code that runs is server-controlled and could change at any point in time."
+            ))
+            break
+
+    return findings
+
+def check_insecure_http(name: str, config: dict) -> list[Finding]:
+
+    findings = []
+    args = config.get("args", [])
+
+    for arg in args:
+        if "http://" in arg:
+            findings.append(Finding(
+                server_name=name,
+                severity="medium",
+                category="insecure-http",
+                message=f"'{arg}' is insecure and unencrypted. Your traffic can be intercepted and poisoned. Be careful."
+            ))
 
     return findings
 
@@ -96,10 +164,11 @@ def report(findings: list[Finding]) -> None:
     if not findings: 
         print("No Issues Were Found, Stay Safe.")
         return
+
     else:
         for f in findings:
             color = SEVERITY_COLORS.get(f.severity, "")
-            print(f"{color}[{f.severity.upper()}]{COLOR_RESET} {f.server_name} ({f.category}): {f.message}")
+            print(f"{color}[{f.severity.upper()}]{COLOR_RESET}\n{f.server_name} ({f.category}): {f.message}\n")
 
 try: 
     path = os.path.expanduser(sys.argv[1])
@@ -146,8 +215,11 @@ TOKEN_PREFIXES = {
 
 CHECKS = [
     check_install_flags, 
-    check_filesystem_paths,
     check_hardcoded_secrets,
+    check_suspicious_commands,
+    check_curl_pipe_bash,
+    check_insecure_http,
+    check_filesystem_paths,
 ]
 
 all_findings = []
