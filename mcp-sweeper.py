@@ -1,11 +1,13 @@
+#!/usr/bin/env python3
 import os
 import sys
 import json
+import argparse
 from dataclasses import dataclass
 
+from constants import BROAD_PATHS, SEVERITY_ORDER, SEVERITY_COLORS, TOKEN_PREFIXES, COLOR_RESET
 
 # ===  MCP SCANNER  === #
-
 
 @dataclass
 class Finding: 
@@ -14,12 +16,15 @@ class Finding:
     category: str 
     message: str
 
+
 def check_hardcoded_secrets(name: str, config: dict) -> list[Finding]:
 
     findings = []
     env = config.get("env", {})
 
     for var_name, value in env.items():
+        if not isinstance(value, str):
+            continue
         if value.startswith(("$", "{")):   # env var refrence, so not a real token
             continue   
 
@@ -37,11 +42,12 @@ def check_hardcoded_secrets(name: str, config: dict) -> list[Finding]:
         
     return findings 
 
+
 def check_install_flags(name: str, config: dict) -> list[Finding]: 
 
     findings = []
-    command = config["command"]
-    args = config["args"]
+    command = config.get("command", "")
+    args = config.get("args", [])
 
     # Check for unsafe flags:
     if command in ("npx", "uvx") and ("-y" in args or "--yes" in args):
@@ -54,10 +60,11 @@ def check_install_flags(name: str, config: dict) -> list[Finding]:
 
     return findings
 
+
 def check_suspicious_commands(name: str, config: dict) -> list[Finding]:
 
     findings = []
-    command = config["command"] 
+    command = config.get("command", "")
     args = config.get("args", [])
 
     if command in ("bash", "sh") and "-c" in args:
@@ -86,6 +93,7 @@ def check_suspicious_commands(name: str, config: dict) -> list[Finding]:
         
     return findings
 
+
 def check_curl_pipe_bash(name: str, config: dict) -> list[Finding]:
 
     findings = []
@@ -106,6 +114,7 @@ def check_curl_pipe_bash(name: str, config: dict) -> list[Finding]:
 
     return findings
 
+
 def check_insecure_http(name: str, config: dict) -> list[Finding]:
 
     findings = []
@@ -122,10 +131,11 @@ def check_insecure_http(name: str, config: dict) -> list[Finding]:
 
     return findings
 
+
 def check_filesystem_paths(name: str, config: dict) -> list[Finding]:
 
     findings = []
-    args = config["args"]
+    args = config.get("args", [])
 
     # Check wether the server is a filesystem MCP
     is_fs_server = False
@@ -137,27 +147,18 @@ def check_filesystem_paths(name: str, config: dict) -> list[Finding]:
     if not is_fs_server:
         return findings 
 
-    broad_paths = {
-        "/": "your entire computer to the MCP, things like your '/etc' with system configs and password databases.\n'/var/log' holds all the logs.\n'/usr/bin' holds every installed binary.\nThe LLM is now practically an admin on your system. Is this what you want? ",
-        "~": "things like '.ssh', '.aws', or '.env' to your MCP Server.\nIs this what you want?",
-        "~/": "things like '.ssh', '.aws', or '.env' to your MCP Server.\nIs this what you want?",
-        "/home": "every user on the machine. Most concerning on shared systems. if you are on a single-user machine, this is effectively a superset of '~'. ",
-        "/Users": "every user on the machine. Most concerning on shared systems. if you are on a single-user machine, this is effectively a superset of '~'. ",   # Essentially /home but on MacOS
-        "/etc": "system wide configs like '/etc/passwd'. '/etc/shadow', '/etc/cron.d' etc. These contain things like password hashes, scheduled jobs, every user on your system and so much more. You're essentially planting an intelligent backdoor on your system.",
-        "/root": "key files like '.ssh/', your root SSH keys. If your LLM can read /root it can become root... Don't forget .bash_history, and if you use AWS CLI, that too my friend is full cloud credentials...",
-    }
-
     for arg in args:
 
-        if arg in broad_paths: 
+        if arg in BROAD_PATHS: 
             findings.append(Finding(
                 server_name=name, 
                 severity="high",
                 category="broad-fs-path",
-                message=f"'{arg}' exposes {broad_paths[arg]}"
+                message=f"'{arg}' exposes {BROAD_PATHS[arg]}"
             ))
 
     return findings
+
 
 def report(findings: list[Finding]) -> None:
 
@@ -170,49 +171,6 @@ def report(findings: list[Finding]) -> None:
             color = SEVERITY_COLORS.get(f.severity, "")
             print(f"{color}[{f.severity.upper()}]{COLOR_RESET}\n{f.server_name} ({f.category}): {f.message}\n")
 
-try: 
-    path = os.path.expanduser(sys.argv[1])
-
-except IndexError: 
-    print("Argument missing..." )
-    sys.exit(2)
-
-try:
-    with open(path) as f:
-        data = json.load(f)
-
-except FileNotFoundError as e:
-    print(f"Filename was not found: \n{e}")
-    sys.exit(2)
-
-except json.JSONDecodeError as e:
-    print(f"Invalid JSON... {e}")
-    sys.exit(2)
-
-SEVERITY_COLORS = {
-    "low":      "\033[38;2;255;215;0m",         # Yellow
-    "medium":   "\033[38;2;255;140;0m",         # Orange
-    "high":     "\033[38;2;220;30;30m",         # Red 
-    "critical": "\033[38;2;139;0;0m",           # Darker Red
-}
-
-COLOR_RESET = "\033[0m"
-
-TOKEN_PREFIXES = {
-    "sk-":      ("OpenAI / Anthropic API key",   30),
-    "ghp_":     ("GitHub personal access token", 40),
-    "gho_":     ("GitHub OAuth token",           40),
-    "ghu_":     ("GitHub user-to-server token",  40),
-    "ghs_":     ("GitHub server-to-server token",40),
-    "AKIA":     ("AWS access key ID",            20),
-    "ASIA":     ("AWS temporary access key",     20),
-    "xoxb-":    ("Slack bot token",              40),
-    "xoxp-":    ("Slack user token",             40),
-    "npm_":     ("npm token",                    40),
-    "glpat-":   ("GitLab personal access token", 26),
-    "AIza":     ("Google API key",               39),
-}
-
 CHECKS = [
     check_install_flags, 
     check_hardcoded_secrets,
@@ -222,11 +180,53 @@ CHECKS = [
     check_filesystem_paths,
 ]
 
-all_findings = []
+def main():
+    parser = argparse.ArgumentParser(
+        description="Sweep an MCP config for common security issues."
+    )
+    parser.add_argument(
+        "config",
+        help="Path to the MCP config file (ex. ~/.cursor/mcp.json)"
+    )
+    parser.add_argument(
+        "--severity", "-s", 
+        choices=["low", "medium", "high", "critical"],
+        help="Minimum severity to report (default: show all)"
+    )
+    args = parser.parse_args()
+    path = os.path.expanduser(args.config)
 
-for name, config in data["mcpServers"].items():
-    for check in CHECKS: 
-        all_findings.extend(check(name, config))
+    try:
+        with open(path) as f:
+            data = json.load(f)
 
-report(all_findings)
-sys.exit(1 if all_findings else 0)
+    except FileNotFoundError as e:
+        print(f"Filename was not found: \n{e}")
+        sys.exit(2)
+
+    except json.JSONDecodeError as e:
+        print(f"Invalid JSON... {e}")
+        sys.exit(2)
+
+    try: 
+        servers = data["mcpServers"]
+    except KeyError: 
+        print("No 'mcpServers' key found. Make sure this is an MCP config file")
+        sys.exit(2)
+
+    all_findings = []
+
+    for name, config in servers.items():
+        for check in CHECKS: 
+            all_findings.extend(check(name, config))
+
+    if args.severity: 
+        threshold = SEVERITY_ORDER[args.severity]
+        all_findings = [f for f in all_findings
+                        if SEVERITY_ORDER[f.severity] >= threshold] 
+
+    report(all_findings)
+    sys.exit(1 if all_findings else 0)
+
+if __name__ == "__main__":
+    main()
