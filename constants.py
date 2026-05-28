@@ -38,3 +38,30 @@ BROAD_PATHS = {
     "/etc": "system wide configs like '/etc/passwd'. '/etc/shadow', '/etc/cron.d' etc. These contain things like password hashes, scheduled jobs, every user on your system and so much more. You're essentially planting an intelligent backdoor on your system.",
     "/root": "key files like '.ssh/', your root SSH keys. If your LLM can read /root it can become root... Don't forget .bash_history, and if you use AWS CLI, that too my friend is full cloud credentials...",
 }
+
+INJECTION_ENVS = {
+    "LD_PRELOAD":           "forces loading of attacker-controlled shared libraries into the process at startup",
+    "LD_LIBRARY_PATH":      "adds attacker-controlled directories to the dynamic library search path",
+    "DYLD_INSERT_LIBRARIES":"is the macOS equivalent of LD_PRELOAD",
+    "DYLD_LIBRARY_PATH":    "is the macOS equivalent of LD_LIBRARY_PATH",
+    "PYTHONPATH":           "adds attacker-controlled directories to Python's import path; module name collisions win",
+    "NODE_PATH":            "adds attacker-controlled directories to Node.js's require() path",
+}
+
+TLS_BYPASS_FLAGS = {
+    "-k",
+    "--insecure", 
+    "--no-check-certificate",
+}
+
+SUSPICIOUS_SOURCES = {
+    "pastebin.com":              "anonymous paste hosting, commonly used to stage payloads",
+    "raw.githubusercontent.com": "raw file from a GitHub repo, often a throwaway; content can change without notice",
+    "gist.githubusercontent.com":"raw GitHub gist, anonymous and mutable",
+    "transfer.sh":               "ephemeral file hosting, common in malware delivery",
+    "0x0.st":                    "anonymous file hosting, common in malware delivery",
+    "file.io":                   "ephemeral file hosting",
+    "cdn.discordapp.com":        "Discord CDN, heavily abused for malware hosting",
+    "ipfs.io":                   "IPFS gateway, decentralized and hard to take down",
+    "cloudflare-ipfs.com":       "IPFS gateway, decentralized and hard to take down",
+}

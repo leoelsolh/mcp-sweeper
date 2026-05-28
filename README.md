@@ -1,4 +1,4 @@
-# MCP-safety scanner
+# MCP-safety sweeper
  A static analysis tool that scans your MCP server configurations for dangerous patterns and security risks you may not know existed.
 
 - - - 

@@ -5,7 +5,7 @@ import json
 import argparse
 from dataclasses import dataclass
 
-from constants import BROAD_PATHS, SEVERITY_ORDER, SEVERITY_COLORS, TOKEN_PREFIXES, COLOR_RESET
+import constants 
 
 # ===  MCP SCANNER  === #
 
@@ -28,7 +28,7 @@ def check_hardcoded_secrets(name: str, config: dict) -> list[Finding]:
         if value.startswith(("$", "{")):   # env var refrence, so not a real token
             continue   
 
-        for prefix, (token_type, min_length) in TOKEN_PREFIXES.items():
+        for prefix, (token_type, min_length) in constants.TOKEN_PREFIXES.items():
 
             if value.startswith(prefix) and len(value) >= min_length:
                 findings.append(Finding(
@@ -133,7 +133,7 @@ def check_insecure_http(name: str, config: dict) -> list[Finding]:
 
 
 def check_filesystem_paths(name: str, config: dict) -> list[Finding]:
-
+    
     findings = []
     args = config.get("args", [])
 
@@ -149,13 +149,72 @@ def check_filesystem_paths(name: str, config: dict) -> list[Finding]:
 
     for arg in args:
 
-        if arg in BROAD_PATHS: 
+        if arg in constants.BROAD_PATHS: 
             findings.append(Finding(
                 server_name=name, 
                 severity="high",
                 category="broad-fs-path",
-                message=f"'{arg}' exposes {BROAD_PATHS[arg]}"
+                message=f"'{arg}' exposes {constants.BROAD_PATHS[arg]}"
             ))
+
+    return findings
+
+
+def check_env_injection(name: str, config: dict) -> list[Finding]:
+    
+    findings = []
+    env = config.get("env", {})
+
+    for var_name in env: 
+        if var_name in constants.INJECTION_ENVS:
+            findings.append(Finding(
+                server_name=name, 
+                severity="high",
+                category="env-injection",
+                message=f"'{var_name}' {constants.INJECTION_ENVS[var_name]}"
+            ))
+    
+    return findings
+
+
+def check_tls_bypass(name: str, config: dict) -> list[Finding]:
+    
+    findings = []
+    args = config.get("args", [])
+
+    for arg in args:
+        if not isinstance(arg, str): 
+            continue
+        for token in arg.split(): 
+            if token in constants.TLS_BYPASS_FLAGS:
+                findings.append(Finding(
+                    server_name=name, 
+                    severity="high",
+                    category="tls-bypass",
+                    message=f"'{token}' disables TLS certificate verification. Traffic is encrypted but the server's identity is never checked, so a man-in-the-middle can impersonate it."
+                ))
+                break
+
+    return findings
+
+
+def check_suspicious_sources(name: str, config: dict) -> list[Finding]:
+
+    findings = []
+    args = config.get("args", [])
+
+    for arg in args: 
+        if not isinstance(arg, str):
+            continue
+        for domain, reason in constants.SUSPICIOUS_SOURCES.items():
+            if domain in arg: 
+                findings.append(Finding(
+                    server_name=name, 
+                    severity="medium",
+                    category="suspicious-source",
+                    message=f"args reference '{domain}': {reason}"
+                ))
+                break
 
     return findings
 
@@ -168,8 +227,9 @@ def report(findings: list[Finding]) -> None:
 
     else:
         for f in findings:
-            color = SEVERITY_COLORS.get(f.severity, "")
-            print(f"{color}[{f.severity.upper()}]{COLOR_RESET}\n{f.server_name} ({f.category}): {f.message}\n")
+            color = constants.SEVERITY_COLORS.get(f.severity, "")
+            print(f"{color}[{f.severity.upper()}]{constants.COLOR_RESET}\n{f.server_name} ({f.category}): {f.message}\n")
+
 
 CHECKS = [
     check_install_flags, 
@@ -178,7 +238,11 @@ CHECKS = [
     check_curl_pipe_bash,
     check_insecure_http,
     check_filesystem_paths,
+    check_env_injection,
+    check_tls_bypass,
+    check_suspicious_sources,
 ]
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -221,9 +285,9 @@ def main():
             all_findings.extend(check(name, config))
 
     if args.severity: 
-        threshold = SEVERITY_ORDER[args.severity]
+        threshold = constants.SEVERITY_ORDER[args.severity]
         all_findings = [f for f in all_findings
-                        if SEVERITY_ORDER[f.severity] >= threshold] 
+                        if constants.SEVERITY_ORDER[f.severity] >= threshold] 
 
     report(all_findings)
     sys.exit(1 if all_findings else 0)
