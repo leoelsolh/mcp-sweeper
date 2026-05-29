@@ -3,7 +3,9 @@ import os
 import sys
 import json
 import argparse
+from collections import Counter
 from dataclasses import dataclass
+
 
 import constants 
 
@@ -221,15 +223,25 @@ def check_suspicious_sources(name: str, config: dict) -> list[Finding]:
 
 def report(findings: list[Finding]) -> None:
 
+    findings = sorted(findings, key=lambda f: constants.SEVERITY_ORDER[f.severity], reverse=True)
+
     if not findings: 
         print("No Issues Were Found, Stay Safe.")
         return
 
-    else:
-        for f in findings:
-            color = constants.SEVERITY_COLORS.get(f.severity, "")
-            print(f"{color}[{f.severity.upper()}]{constants.COLOR_RESET}\n{f.server_name} ({f.category}): {f.message}\n")
+    for f in findings:
+        color = constants.SEVERITY_COLORS.get(f.severity, "")
+        print(f"{color}[{f.severity.upper()}]{constants.COLOR_RESET}\n{f.server_name} ({f.category}): {f.message}\n")
+            
+    counts = Counter(f.severity for f in findings)
+    parts = []
 
+    for severity in sorted(counts, key=lambda s: constants.SEVERITY_ORDER[s], reverse=True):
+        parts.append(f"{counts[severity]} {severity}")
+
+    print(f"Found {', '.join(parts)}.")
+
+            
 
 CHECKS = [
     check_install_flags, 
